@@ -19,14 +19,14 @@ class ImageController extends Controller
 
     public function imageCompress(Request $request) {
         // Utilises Intervention PHP Image manipulation library
-        $imageFile = $request->file("image");
+        $imageFile = $request->file('image');
         $format = strtolower($request->input("format"));
         $quality = (int)$request->input("quality");
         $width = (int)$request->input("width", null);
 
         // Start Intervention
         $manager = new ImageManager(new Driver());
-        $imageFile = $manager->read($imageFile->getPathname());
+        $image = $manager->read($imageFile->getPathname());
         if ($width) {
             $image->resize($width, null, function ($constrant) {
                 $constrant->aspectRatio();
