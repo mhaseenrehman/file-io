@@ -23,6 +23,7 @@
     import { reactive } from 'vue';
     import axios from 'axios';
     import { useToast } from 'vue-toastification';
+import { split } from 'postcss/lib/list';
 
     const initial_image_state = {
         fileSelected: null,
@@ -73,17 +74,34 @@
         formData.append('width', data.chosenImage.width);
         formData.append('format', data.chosenImage.format);
 
-        console.log(formData);
-
         const response = await apiClient.post('', formData)
                                 .then(response => {
+                                    console.log("SUCCESS! Image Compressed.");
                                     console.log(response.data);
+                                    provideDownloadLink(response.data);
                                     toast.success("Success! Image Compressed.", {timeout: 4000});
                                 })
                                 .catch(error => {
                                     console.log("ERROR DURING COMPRESSION: ", error.response.data);
                                     toast.error("Error Occurred, Please try again later.", {timeout: 4000});
                                 });
+    }
+
+    const provideDownloadLink = ({compressed_image_size, filename, image_data, original_image_size}) => {
+        if (compressed_image_size && image_data && original_image_size) {
+            console.log("doing thsi")
+            const fileExtension = filename.split('.').pop();
+            const compressedImage = `data:image/${fileExtension};base64,${image_data}`;
+            data.fileInfo = { filename, compressed_image_size, original_image_size };
+            const link = document.createElement('a');
+            link.href = compressedImage;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } else{
+            toast.error("Error Occurred, Please try again later.", {timeout: 4000});
+        }
     }
 </script>
 

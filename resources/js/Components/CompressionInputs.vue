@@ -13,7 +13,7 @@
             </label>
             <select class="col-start-1 row-start-1 w-full appearance-none rounded-md bg-gray-800 py-1.5 pr-7 pl-3 text-base text-gray-400 *:bg-gray-800 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm/6" name="compressionFormat" id="compressionFormat" v-model="chosenImage.format">
                 <option value="webp">webp</option>
-                <option value="jpeg">jpeg</option>
+                <option value="jpg">jpg</option>
                 <option value="png">png</option>
             </select>
         </div>
