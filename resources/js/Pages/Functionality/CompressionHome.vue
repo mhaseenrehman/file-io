@@ -1,24 +1,27 @@
 <template lang="">
-    <div class="flex flex-row min-h-screen justify-center items-center dark:bg-gray-800">
-        <form @submit.prevent="compressImage">
+    <div class="flex flex-col min-h-screen justify-center items-center dark:bg-gray-800 h-full">
+        <form class="flex flex-col justify-center items-center" @submit.prevent="compressImage">
             <CompressionInputs :chosenImage="data.chosenImage"/>
             <div class="p-2 pb-12" @drop.prevent="handleDrop" @dragover.prevent>
                 <label for="imagesInput" class="drop-zone-label dark:text-gray-400 border-2 border-dashed p-8" >
                     Drag and Drop images here or Click to select from Directory
                 </label>
-                <!-- <input type="file" multiple name="imagesInput" id="imagesInput" accept="image/*" hidden> -->
                 <input type="file" name="imagesInput" id="imagesInput" accept="image/*" hidden @change="handleFileChange">
+                <!-- <input type="file" multiple name="imagesInput" id="imagesInput" accept="image/*" hidden> -->
             </div>
-            <PreviewImageCard :chosenImage="data.chosenImage">
-            </PreviewImageCard>
             <button type="submit" id="downloadCompressedButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full">Download Compressed</button>
         </form>
+        <div class="grid grid-cols-2 py-2">
+            <PreviewImageCard :chosenImage="data.chosenImage"></PreviewImageCard>
+            <DownloadableImageDetails :fileInformation="data.fileInfo"/>
+        </div>
     </div>
 </template>
 
 <script setup>
     import CompressionInputs from '@/Components/CompressionInputs.vue';
     import PreviewImageCard from '@/Components/PreviewImageCard.vue';
+    import DownloadableImageDetails from '@/Components/DownloadableImageDetails.vue';
     
     import { reactive } from 'vue';
     import axios from 'axios';
@@ -46,6 +49,7 @@ import { split } from 'postcss/lib/list';
 
     const handleFileChange = (event) => {
         displayPreviewImage(event.target.files[0]);
+        event.target.value = '';
     }
 
     const displayPreviewImage = (file) => {
