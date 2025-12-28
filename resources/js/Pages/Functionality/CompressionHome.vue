@@ -19,16 +19,18 @@
 </template>
 
 <script setup>
-    import CompressionInputs from '@/Components/CompressionInputs.vue';
-    import PreviewImageCard from '@/Components/PreviewImageCard.vue';
-    import DownloadableImageDetails from '@/Components/DownloadableImageDetails.vue';
     
     import { reactive } from 'vue';
     import axios from 'axios';
     import { useToast } from 'vue-toastification';
-import { split } from 'postcss/lib/list';
+    import { split } from 'postcss/lib/list';
 
-    const initial_image_state = {
+    import CompressionInputs from '@/Components/CompressionInputs.vue';
+    import PreviewImageCard from '@/Components/PreviewImageCard.vue';
+    import DownloadableImageDetails from '@/Components/DownloadableImageDetails.vue';
+    import { useFileValidator } from '@/Composables/useFileValidator';
+
+    const INITIAL_IMAGE_STATE = {
         fileSelected: null,
         imageUrl: null,
         format: "webp",
@@ -37,9 +39,10 @@ import { split } from 'postcss/lib/list';
     }
 
     const toast = useToast();
+    const {validateFile} = useFileValidator();
 
     const data = reactive({
-        chosenImage: {...initial_image_state},
+        chosenImage: {...INITIAL_IMAGE_STATE},
         fileInfo: null
     });
 
@@ -53,42 +56,49 @@ import { split } from 'postcss/lib/list';
     }
 
     const displayPreviewImage = (file) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            data.chosenImage = {
-                ...data.chosenImage,
-                fileSelected: file,
-                imageUrl: e.target.result,
+        if (validateFile(file)) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                data.chosenImage = {
+                    ...data.chosenImage,
+                    fileSelected: file,
+                    imageUrl: e.target.result,
+                }
             }
+            reader.readAsDataURL(file);
         }
-        reader.readAsDataURL(file);
     }
 
     const compressImage = async () => {
-        const apiClient = axios.create({
-            baseURL: '/api/imageCompress',
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
-        });
+        if (validateFile(data.chosenImage.fileSelected)) {
+            const apiClient = axios.create({
+                baseURL: '/api/imageCompress',
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
 
-        const formData = new FormData();
-        formData.append('image', data.chosenImage.fileSelected);
-        formData.append('quality', data.chosenImage.quality);
-        formData.append('width', data.chosenImage.width);
-        formData.append('format', data.chosenImage.format);
+            const formData = new FormData();
+            formData.append('image', data.chosenImage.fileSelected);
+            formData.append('quality', data.chosenImage.quality);
+            formData.append('width', data.chosenImage.width);
+            formData.append('format', data.chosenImage.format);
 
-        const response = await apiClient.post('', formData)
-                                .then(response => {
-                                    console.log("SUCCESS! Image Compressed.");
-                                    console.log(response.data);
-                                    provideDownloadLink(response.data);
-                                    toast.success("Success! Image Compressed.", {timeout: 4000});
-                                })
-                                .catch(error => {
-                                    console.log("ERROR DURING COMPRESSION: ", error.response.data);
-                                    toast.error("Error Occurred, Please try again later.", {timeout: 4000});
-                                });
+            const response = await apiClient.post('', formData)
+                                    .then(response => {
+                                        console.log("SUCCESS! Image Compressed.");
+                                        console.log(response.data);
+                                        provideDownloadLink(response.data);
+                                        toast.success("Success! Image Compressed.", {timeout: 4000});
+                                    })
+                                    .catch(error => {
+                                        console.log("ERROR DURING COMPRESSION: ", error.response.data);
+                                        toast.error("Error Occurred, Please try again later.", {timeout: 4000});
+                                    })
+                                    .finally(() => {
+                                        resetFields();
+                                    });
+        }
     }
 
     const provideDownloadLink = ({compressed_image_size, filename, image_data, original_image_size}) => {
@@ -106,6 +116,10 @@ import { split } from 'postcss/lib/list';
         } else{
             toast.error("Error Occurred, Please try again later.", {timeout: 4000});
         }
+    }
+
+    const resetFields = () => {
+        data.chosenImage = { ...INITIAL_IMAGE_STATE};
     }
 </script>
 
