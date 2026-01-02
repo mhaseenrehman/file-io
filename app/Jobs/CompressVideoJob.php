@@ -4,8 +4,10 @@ namespace App\Jobs;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use App\Models\ImageFile;
 use App\Events\VideoCompressedEvent;
 use App\Services\CompressionService;
+
 
 class CompressVideoJob implements ShouldQueue
 {
@@ -17,10 +19,14 @@ class CompressVideoJob implements ShouldQueue
     protected $quality;
     protected $width;
 
+    // Retries and Timeouts
+    public $tries = 3;
+    public $timeout = 120;
+
     /**
      * Create a new job instance.
      */
-    public function __construct($imageFile, $format, $quality, $width)
+    public function __construct(ImageFile $imageFile, $format, $quality, $width)
     {
         // Construct Video Compression Job Details
         $this->imageFile = $imageFile;
@@ -35,14 +41,29 @@ class CompressVideoJob implements ShouldQueue
     public function handle(CompressionService $cs): void
     {
         try {
+
             $cs->compressImage($this->imageFile, $this->format, $this->quality, $this->width);
-        } catch (\Exception $e) {}
+
+        } catch (\Exception $e) {
+
+            if ($this->attempts() >= $this->tries) {
+                $this->imageFile->update([
+                    'current_status' => 'failed',
+                    'error_message' => 'Max attempts at compression failed'
+                ]);
+            }
+
+            throw $e;
+        }
     }
 
     /**
      * Handle failed job.
      */
-    public function failed() {
-
+    public function failed(\Exception $e) {
+        $this->imageFile->update([
+            'current_status' => 'failed',
+            'error_message' => 'Compression job failed: ' . $e->getMessage()
+        ]);
     }
 }

@@ -93,11 +93,13 @@
         const formData = new FormData();
         //formData.append('images', data.chosenImages.filesSelected);
         data.chosenImages.filesSelected.forEach(file => {
-            formData.append('images', file);
+            formData.append('images[]', file);
         });
         formData.append('quality', data.chosenImages.quality);
         formData.append('width', data.chosenImages.width);
         formData.append('format', data.chosenImages.format);
+
+        console.log(formData);
 
         const response = await apiClient.post('', formData)
                                 .then(response => {

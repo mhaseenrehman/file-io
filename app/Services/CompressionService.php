@@ -2,18 +2,17 @@
 
 namespace App\Services;
 
-use App\Models\ImageFIle;
+use Intervention\Image\ImageManager;
+use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\Drivers\Gd\Encoders\JpegEncoder;
+use Intervention\Image\Drivers\Gd\Encoders\PngEncoder;
+use Intervention\Image\Drivers\Gd\Encoders\WebpEncoder;
+
+use App\Models\ImageFile;
 
 class CompressionService
 {
-    /**
-     * Create a new class instance.
-     */
-    public function __construct()
-    {
-        //
-    }
-
+    
     /**
      * Store file on disk
      */
@@ -24,19 +23,24 @@ class CompressionService
         // Using 'local' disk location makes it so that root @ /storage/app/private/
         // When retrieving file, ensure get absolute directory -> /storage/app/private/(TYPE)/requests/
         $filename = time() . '_' . uniqid('', true) . $file->extension();
-        $storagePath - $type . '/requests';
+        if ($type === 'image') { $storagePath = 'images/requests'; }
         $origPath = $file->storeAs($storagePath, $filename, 'local');
 
         // Create final File
-        return ImageFile::create([
+        $result = ImageFile::create([
             'orig_name' => $origFilename,
             'orig_path' => $origPath,
             'orig_size' => $origSize,
             'orig_format' => $file->extension(),
-            'current_status' => 'waiting',
+            'current_status' => 'waiting'
         ]);
+
+        return $result;
     }
 
+    //////////////////////////////////////////////////////////
+    ////////////////////////// TEST //////////////////////////
+    //////////////////////////////////////////////////////////
     /**
      * Compress image functionality
      *
@@ -44,30 +48,28 @@ class CompressionService
     public function compressImage(ImageFile $imageFile, $format, $quality, $width) {
         try {
             // Pick encoder
-            switch($this->format) {
+            switch($format) {
                 case 'jpg':
                 case 'jpeg':
-                    $encoder = new JpegEncoder($this->quality);
+                    $encoder = new JpegEncoder($quality);
                     $extension = 'jpg';
                     break;
                 
                 case 'png':
-                    $encoder = new PngEncoder($this->quality);
+                    $encoder = new PngEncoder($quality);
                     $extension = 'png';
                     break;
 
                 case 'webp':
                 default:
-                    $encoder = new WebpEncoder($this->quality);
+                    $encoder = new WebpEncoder($quality);
                     $extension = 'webp';
                     break;
             }
 
             // Need to update and then retrieve image from local storage
-            $imageFile->update(['current_status' => 'processing']);
             $originalPath = storage_path('app/private/' . $imageFile->orig_path);
-            
-            $compressedFilename = pathinfo($imageFile->orig_path, PATHINFO_FILENAME) . 'compressed_' . $extension;
+            $compressedFilename = pathinfo($imageFile->orig_path, PATHINFO_FILENAME) . '_compressed' . $extension;
             $compressedPath = 'images/compressed/' . $compressedFilename;
             $absoluteCompressedPath = storage_path('app/private/' . $compressedPath);
 
@@ -88,8 +90,8 @@ class CompressionService
             $manager = new ImageManager(new Driver());
             $image = $manager->read($originalPath);
             //$image = $manager->read($imageFile->getPathname());
-            if ($this->width) {
-                $image->resize($this->width, null, function ($constraint) {
+            if ($width) {
+                $image->resize($width, null, function ($constraint) {
                     $constraint->aspectRatio();
                     $constraint->upsize();
                 });
@@ -100,7 +102,7 @@ class CompressionService
             // Finally, save the file to local
             $encoded = $image->encode($encoder);
             $downloadableLink = base64_encode($encoded->toString());
-            $originalSizeKB = round($this->imageFile->getSize() / 1024, 2);
+            //$originalSizeKB = round($image->getSize() / 1024, 2);
             $compressedSizeKB = round(strlen($encoded->toString()) / 1024, 2);
             $encoded->save($absoluteCompressedPath);
 
@@ -115,7 +117,14 @@ class CompressionService
             // Return newly updated $imageFile
             return $imageFile;
 
-        } catch (\Exception $e) {}
+        } catch (\Exception $e) {
+            $imageFile->update([
+                'current_status' => 'failed',
+                'error_message' => $e->getMessage()
+            ]);
+
+            throw $e;
+        }
     }
 
     /**
@@ -128,7 +137,7 @@ class CompressionService
      * Get file details from disk
      */
     public function getFileDetails($fileId, $type=null) {
-        if (type === 'image') {
+        if ($type === 'image') {
             return ImageFile::findOrFail($fileId);
         }
     }
@@ -141,4 +150,18 @@ class CompressionService
         return url('api/imageDownload/' . $imageFile->id);
     }
 
+
+
+    // ----------------------------------------------------- TEST FUNCTIONALITY -----------------------------------------------------
+    public function storeFileTest() {
+        // Create final File
+        $img = ImageFile::create([
+            'orig_name' => 'filex.png',
+            'orig_path' => 'local/something/something/',
+            'orig_size' => '5kb',
+            'orig_format' => 'png',
+            'current_status' => 'waiting'
+        ]);
+        return $img;
+    }
 }

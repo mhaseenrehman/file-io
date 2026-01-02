@@ -8,6 +8,13 @@ use Illuminate\Database\Eloquent\Model;
 class ImageFile extends Model
 {
     use hasUuids;
+    
+    /**
+     * The table associated with the model.
+     * @var string
+     */
+    protected $table = 'imagefiles';
+
     protected $fillable = [
         'orig_name',
         'orig_path',

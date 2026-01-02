@@ -3,11 +3,6 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Intervention\Image\ImageManager;
-use Intervention\Image\Drivers\Gd\Driver;
-use Intervention\Image\Drivers\Gd\Encoders\JpegEncoder;
-use Intervention\Image\Drivers\Gd\Encoders\PngEncoder;
-use Intervention\Image\Drivers\Gd\Encoders\WebpEncoder;
 use App\Models\ImageFile;
 use App\Services\CompressionService;
 use App\Jobs\CompressVideoJob;
@@ -17,6 +12,10 @@ use Inertia\Response;
 class ImageController extends Controller
 {
     protected $compressionService;
+
+    public function __construct(CompressionService $compService) {
+        $this->compressionService = $compService;
+    }
 
     /**
      * Show page using inertia.js
@@ -30,24 +29,33 @@ class ImageController extends Controller
      */
     public function imageCompress(Request $request) {
         try {
+
             // Utilises Intervention PHP Image manipulation library
-            $image = $request->file('image');
-            $format = strtolower($request->input("format"));
-            $quality = (int)$request->input("quality");
-            $width = (int)$request->input("width", null);
+            if ($request->hasFile('images')) {
+                $images = $request->file('images');
 
-            // Need to store file on system for async compression and retrieval
-            $imageFile = $this->compressionService->storeFile($image);
+                foreach ($images as $image) {
+                    $format = strtolower($request->input("format"));
+                    $quality = (int)$request->input("quality");
+                    $width = (int)$request->input("width", null);
+                    
+                    // Need to store file on system for async compression and retrieval
+                    $imageFile = $this->compressionService->storeFile($image, 'image');
 
-            // Queue async job for compression
-            CompressVideoJob::dispatch($imageFile);
+                    // Queue async job for compression
+                    CompressVideoJob::dispatch($imageFile, $format, $quality, $width);
 
-            // Return JSON response
-            return response()->json([
-                'message' => 'Successfully Queued file for Compression',
-                'request_id' => $imageFile->id,
-                'current_status' => $imageFile->current_status
-            ], 200);
+                    // Return JSON response
+                    return response()->json([
+                        'message' => 'Successfully Queued file for Compression',
+                        'request_id' => $imageFile->id,
+                        'current_status' => $imageFile->current_status
+                    ], 200);
+                }
+
+            } else {
+                throw new \Exception('No Files found');
+            }
 
             // return response()->json([
             //     'filename' => $filenames->toJson(),
@@ -57,6 +65,7 @@ class ImageController extends Controller
             // ]);
 
         } catch (\Exception $e) {
+            // Return JSON response
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
