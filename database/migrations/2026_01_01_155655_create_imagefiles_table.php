@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('imagefiles', function (Blueprint $table) {
             $table->uuid('id')->primary();
+            $table->integer('file_request_index');
             
             $table->string('orig_name');
             $table->string('orig_path');

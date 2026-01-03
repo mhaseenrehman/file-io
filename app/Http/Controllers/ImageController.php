@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use App\Models\ImageFile;
 use App\Services\CompressionService;
 use App\Jobs\CompressVideoJob;
@@ -33,17 +34,21 @@ class ImageController extends Controller
             // Utilises Intervention PHP Image manipulation library
             if ($request->hasFile('images')) {
                 $images = $request->file('images');
-
+                
+                $index = 0;
+                $indices = $request->input('indices');
                 foreach ($images as $image) {
                     $format = strtolower($request->input("format"));
                     $quality = (int)$request->input("quality");
                     $width = (int)$request->input("width", null);
                     
                     // Need to store file on system for async compression and retrieval
-                    $imageFile = $this->compressionService->storeFile($image, 'image');
+                    $imageFile = $this->compressionService->storeFile($image, $index, 'image');
 
                     // Queue async job for compression
                     CompressVideoJob::dispatch($imageFile, $format, $quality, $width);
+
+                    $index = $index + 1;
 
                     // Return JSON response
                     return response()->json([
@@ -73,9 +78,10 @@ class ImageController extends Controller
     /**
      * Ping for status update on compression process
      */
-    public function imageStatusPing($fileId) {
+    public function imageStatusPing(Request $request) {
         try {
-            $file = $this->compressionService->getFileDetails($fileId);
+            $id = $request->input('id');
+            $file = $this->compressionService->getFileDetails($id, 'image');
 
             $response = [
                 'id' => $file->id,
@@ -86,22 +92,27 @@ class ImageController extends Controller
 
             if ($file->current_status === 'complete') {
                 $response['compressed_size'] = $file->compressed_size;
-                $response['download_link'] = $this->compressionService->getDownloadLink($file);
+                //$response['download_link'] = $this->compressionService->getDownloadLink($file);
             } elseif ($file->current_status === 'failed') {
                 $response['error'] = $file->error_message;
             }
 
             return response()->json($response);
 
-        } catch (\Exception $e) {}
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage(), 'idUsed' => $request->input('id')], 500);
+        }
     }
 
     /**
      * Request to download image
      */
-    public function imageDownload($fileId) {
+    public function imageDownload(Request $request) {
+        $id = $request->input('id');
+        $format = $request->input('format');
+
         try {
-            switch($this->format) {
+            switch($format) {
                 case 'jpg':
                 case 'jpeg':
                     $extension = 'jpg';
@@ -117,9 +128,9 @@ class ImageController extends Controller
                     break;
             }
 
-            $file = ImageFile::findOrFail($fileId);
+            $file = ImageFile::findOrFail($id);
             $path = $file->compressed_path;
-            $filename = pathinfo($imageFile->orig_name, PATHINFO_FILENAME) . 'compressed_' . $extension;
+            $filename = pathinfo($file->orig_path, PATHINFO_FILENAME) . '_compressed.' . $extension;
 
             if (!Storage::exists($path)) {
                 return response()->json(['error' => 'File not found'], 404);

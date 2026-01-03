@@ -16,7 +16,7 @@ class CompressionService
     /**
      * Store file on disk
      */
-    public function storeFile($file, $type) {
+    public function storeFile($file, $index, $type) {
         $origFilename = $file->getClientOriginalName();
         $origSize = $file->getSize();
 
@@ -28,6 +28,7 @@ class CompressionService
 
         // Create final File
         $result = ImageFile::create([
+            'file_request_index' => $index,
             'orig_name' => $origFilename,
             'orig_path' => $origPath,
             'orig_size' => $origSize,
@@ -69,7 +70,7 @@ class CompressionService
 
             // Need to update and then retrieve image from local storage
             $originalPath = storage_path('app/private/' . $imageFile->orig_path);
-            $compressedFilename = pathinfo($imageFile->orig_path, PATHINFO_FILENAME) . '_compressed' . $extension;
+            $compressedFilename = pathinfo($imageFile->orig_path, PATHINFO_FILENAME) . '_compressed.' . $extension;
             $compressedPath = 'images/compressed/' . $compressedFilename;
             $absoluteCompressedPath = storage_path('app/private/' . $compressedPath);
 
@@ -136,9 +137,9 @@ class CompressionService
     /**
      * Get file details from disk
      */
-    public function getFileDetails($fileId, $type=null) {
+    public function getFileDetails($id, $type=null) {
         if ($type === 'image') {
-            return ImageFile::findOrFail($fileId);
+            return ImageFile::findOrFail($id);
         }
     }
 

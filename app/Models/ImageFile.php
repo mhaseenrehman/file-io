@@ -16,6 +16,8 @@ class ImageFile extends Model
     protected $table = 'imagefiles';
 
     protected $fillable = [
+        'file_request_index',
+        
         'orig_name',
         'orig_path',
         'orig_size',

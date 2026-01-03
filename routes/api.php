@@ -11,4 +11,4 @@ use Inertia\Inertia;
 
 Route::post('imageCompress', [ImageController::class, 'imageCompress']);
 Route::get('imageStatusPing', [ImageController::class, 'imageStatusPing']);
-Route::get('imageDownload/{id}', [ImageController::class, 'imageDownload']);
+Route::get('imageDownload', [ImageController::class, 'imageDownload']);
