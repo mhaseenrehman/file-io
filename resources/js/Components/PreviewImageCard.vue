@@ -10,7 +10,7 @@ import { VueElement } from 'vue';
     const props = defineProps({
         chosenImageUrl: {
             type: Object,
-            required: true
+            required: false
         }
     });
 </script>

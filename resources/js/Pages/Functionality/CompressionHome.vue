@@ -11,9 +11,9 @@
             <button type="submit" id="downloadCompressedButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full">Download Compressed</button>
         </form>
         <!-- <div v-for="url in data.chosenImages.imageUrls" class="grid grid-cols-2 py-2"> -->
-        <div v-for="file in data.chosenImages.files" class="grid grid-cols-2 py-2">
-            <PreviewImageCard :chosenImageUrl="file.url"></PreviewImageCard>
-            <StatusButton v-if="file.link" :downloadableLink="file.link"></StatusButton>
+        <div v-if="data.uploadedFiles" v-for="(file, index) in data.chosenImages.files" v-bind:key="index" class="grid grid-cols-2 py-2">
+            <PreviewImageCard v-if="file" :chosenImageUrl="file.url"></PreviewImageCard>
+            <StatusButton v-if="file && file.link" :downloadableLink="file.link" :filename="file.name"></StatusButton>
             <!-- <DownloadableImageDetails :fileInformation="data.fileInfo"/> -->
         </div>
     </div>
@@ -41,17 +41,18 @@
 
     // File Class
     class File {
-        constructor(fs, url, link=null) {
+        constructor(fs, url, link='Waiting', filename=null) {
             this.fileSelected = fs;
             this.url = url;
             this.link = link;
+            this.name = filename;
         }
     };
 
     // Reactive Data and Initial State
     const INITIAL_IMAGE_STATE = {
         files: [],
-        indices: [],
+        //indices: [],
         format: "webp",
         quality: 50,
         width: null
@@ -59,13 +60,8 @@
     
     const data = reactive({
         chosenImages: {...INITIAL_IMAGE_STATE},
+        uploadedFiles: false,
         fileInfo: null,
-
-        addFile(file, url, index) {
-            let f = new File(file, url);
-            data.chosenImages.files.push(f);
-            data.chosenImages.indices.push(index);
-        },
 
         makePending() {
             this.chosenImages.files.forEach(f => {
@@ -75,27 +71,49 @@
     });
 
     // File Methods
-    const handleDrop = (event) => {
-        displayPreviewImage(event.dataTransfer.files);
+    const handleDrop = async (event) => {
+        await displayPreviewImage(event.dataTransfer.files);
     }
 
-    const handleFileChange = (event) => {
-        displayPreviewImage(event.target.files);
+    const handleFileChange = async (event) => {
+        await displayPreviewImage(event.target.files);
         event.target.value = '';
     }
 
-    const displayPreviewImage = (files) => {
+    const addFile = (file, url, index) => {
+        let f = new File(file, url);
+        data.chosenImages.files[index] = f;
+    }
+
+    const displayPreviewImage = async (files) => {
+
+        // const filePromises = [...files].map((file, i) => {
+        //     return new Promise((resolve, reject) => {
+        //         if (validateFile(files[i])) {
+        //             const reader = new FileReader();
+        //             reader.onload = async (e) => {
+        //                 data.addFile(file, e.target.result, i);
+        //             }
+        //             reader.readAsDataURL(file);
+        //         }
+        //     })
+        // });
         for (let i = 0; i < files.length; i++) {
             if (validateFile(files[i])) {
                 const reader = new FileReader();
-                reader.onload = (e) => {
-                    data.addFile(files[i], e.target.result, i);
+                reader.onload = async (e) => {
+                    addFile(files[i], e.target.result, i);
                 }
                 reader.readAsDataURL(files[i]);
             }
         }
+        //await Promise.all(filePromises);
+        console.log("completed");
+        console.log(data.chosenImages);
+        data.uploadedFiles = true;
     }
 
+    // Axios Clients
     const startJobClient = axios.create({
             baseURL: '/api/imageCompress',
             headers: {
@@ -122,12 +140,16 @@
     const compressImage = async () => {
         const formData = new FormData();
 
-        data.chosenImages.files.forEach(f => {
-            formData.append('images[]', f.fileSelected);
-        });
-        data.chosenImages.indices.forEach(i => {
-            formData.append('indices[]', i);
-        });
+        // data.chosenImages.files.forEach(f => {
+        //     formData.append('images[]', f.fileSelected);
+        // });
+        for (var index in data.chosenImages.files) {
+            formData.append('images[]', data.chosenImages.files[index].fileSelected);
+            formData.append('indices[]', index);
+        }
+        // data.chosenImages.indices.forEach(i => {
+        //     formData.append('indices[]', i);
+        // });
 
         formData.append('quality', data.chosenImages.quality);
         formData.append('width', data.chosenImages.width);
@@ -135,12 +157,22 @@
 
         data.makePending();
 
+        console.log(formData);
+
         const response = await startJobClient.post('', formData)
                                 .then(response => {
                                     console.log("SUCCESS: Image Queued.");
                                     console.log(response.data);
-                                    console.log(response.data.request_id);
-                                    pollStatus(response.data.request_id);
+                                    //console.log(response.data.request_id)
+                                    console.log(response.data.request_ids);
+
+                                    let jobs = response.data.request_ids;
+                                    Object.keys(jobs).forEach(function(key) {
+                                        console.log("Request poll for: ", jobs[key]);
+                                        //pollStatus(response.data.request_id);
+                                        pollStatus(jobs[key]);
+                                    });
+                                           
                                     toast.success("SUCCESS! Images sent for Compression.", {timeout: 4000});
                                 })
                                 .catch(error => {
@@ -162,7 +194,7 @@
                                     if (response.data.current_status === "complete") {
                                         console.log("SUCCESS: Image Compressed.");
                                         toast.success("SUCCESS! Images Compressed.", {timeout: 4000});
-                                        provideDownloadLink(response.data.id);
+                                        provideDownloadLink(response.data.id, response.data.file_request_index);
                                         completed = true;
                                     }
                                 })
@@ -181,26 +213,24 @@
     };
 
     // Download Method
-    const provideDownloadLink = async (id) => {
+    const provideDownloadLink = async (id, fileIndex) => {
         downloadPollClient.defaults.baseURL = `/api/imageDownload`;
         
         const res = await downloadPollClient.get('', {params: {id: id, format: data.chosenImages.format}}).then(response => {
-            console.log("doing this");
-
             const { headers } = response;
             const dadosFilename = headers['content-disposition'].split('filename=');
             const filename = dadosFilename[1];
 
-            console.log(dadosFilename);
-            console.log(filename);
-
             const url = window.URL.createObjectURL(new Blob([response.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            data.chosenImages.files[fileIndex].link = url;
+            data.chosenImages.files[fileIndex].name = filename;
+
+            // const link = document.createElement('a');
+            // link.href = url;
+            // link.download = filename;
+            // document.body.appendChild(link);
+            // link.click();
+            // document.body.removeChild(link);
 
         }).catch(error => {
             console.log("Error During Compression.", error.response.data);
@@ -211,37 +241,6 @@
     const resetFields = () => {
         data.chosenImages = { ...INITIAL_IMAGE_STATE};
     }
-
-    // BACKUP
-
-    // const INITIAL_IMAGE_STATE = {
-    //     filesSelected: null,
-    //     imageUrl: null,
-    //     format: "webp",
-    //     quality: 50,
-    //     width: null
-    // }
-
-    // const handleDrop = (event) => {
-    //     displayPreviewImage(event.dataTransfer.files[0]);
-    // }
-    // const handleFileChange = (event) => {
-    //     displayPreviewImage(event.target.files[0]);
-    //     event.target.value = '';
-    // }
-    // const displayPreviewImage = (file) => {
-    //     if (validateFile(file)) {
-    //         const reader = new FileReader();
-    //         reader.onload = (e) => {
-    //             data.chosenImage = {
-    //                 ...data.chosenImage,
-    //                 filesSelected: file,
-    //                 imageUrl: e.target.result,
-    //             }
-    //         }
-    //         reader.readAsDataURL(file);
-    //     }
-    // }
 </script>
 
 <!-- <style scoped></style> -->

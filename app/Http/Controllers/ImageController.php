@@ -35,39 +35,34 @@ class ImageController extends Controller
             if ($request->hasFile('images')) {
                 $images = $request->file('images');
                 
-                $index = 0;
+                $i = 0;
                 $indices = $request->input('indices');
+                $responseIds = [];
                 foreach ($images as $image) {
                     $format = strtolower($request->input("format"));
                     $quality = (int)$request->input("quality");
                     $width = (int)$request->input("width", null);
                     
                     // Need to store file on system for async compression and retrieval
-                    $imageFile = $this->compressionService->storeFile($image, $index, 'image');
+                    $imageFile = $this->compressionService->storeFile($image, $indices[$i], 'image');
+                    $responseIds[$indices[$i]] = $imageFile->id;
+                    $i = $i + 1;
 
                     // Queue async job for compression
                     CompressVideoJob::dispatch($imageFile, $format, $quality, $width);
-
-                    $index = $index + 1;
-
-                    // Return JSON response
-                    return response()->json([
-                        'message' => 'Successfully Queued file for Compression',
-                        'request_id' => $imageFile->id,
-                        'current_status' => $imageFile->current_status
-                    ], 200);
                 }
+
+                // Return JSON response
+                return response()->json([
+                    'message' => 'Successfully Queued file for Compression',
+                    //'request_id' => $imageFile->id,
+                    'current_status' => $imageFile->current_status,
+                    'request_ids' => $responseIds
+                ], 200);
 
             } else {
                 throw new \Exception('No Files found');
             }
-
-            // return response()->json([
-            //     'filename' => $filenames->toJson(),
-            //     'image_data' => $downloadableLinks->toJson(),
-            //     'original_image_size' => $originalSizeKBs->toJson(),
-            //     'compressed_image_size' => $compressedSizeKBs->toJson()
-            // ]);
 
         } catch (\Exception $e) {
             // Return JSON response
@@ -87,6 +82,7 @@ class ImageController extends Controller
                 'id' => $file->id,
                 'orig_name' => $file->orig_name,
                 'orig_size' => $file->orig_size,
+                'file_request_index' => $file->file_request_index,
                 'current_status' => $file->current_status
             ];
 
