@@ -23,7 +23,8 @@ class CompressionService
         // Using 'local' disk location makes it so that root @ /storage/app/private/
         // When retrieving file, ensure get absolute directory -> /storage/app/private/(TYPE)/requests/
         $filename = time() . '_' . uniqid('', true) . "." . $file->extension();
-        if ($type === 'image') { $storagePath = 'images/requests'; }
+        //if ($type === 'image') { $storagePath = 'images/requests'; }
+        if ($type === 'image') { $storagePath = Storage::path('images/requests'); }
         $origPath = $file->storeAs($storagePath, $filename, 'local');
 
         // Create final File
