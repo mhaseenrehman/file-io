@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Storage;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
 use Intervention\Image\Drivers\Gd\Encoders\JpegEncoder;
@@ -24,8 +23,7 @@ class CompressionService
         // Using 'local' disk location makes it so that root @ /storage/app/private/
         // When retrieving file, ensure get absolute directory -> /storage/app/private/(TYPE)/requests/
         $filename = time() . '_' . uniqid('', true) . "." . $file->extension();
-        //if ($type === 'image') { $storagePath = 'images/requests'; }
-        if ($type === 'image') { $storagePath = Storage::path('images/requests'); }
+        if ($type === 'image') { $storagePath = 'images/requests'; }
         $origPath = $file->storeAs($storagePath, $filename, 'local');
 
         // Create final File
@@ -71,13 +69,10 @@ class CompressionService
             }
 
             // Need to update and then retrieve image from local storage
-            //$originalPath = storage_path('app/private/' . $imageFile->orig_path);
-            $originalPath = $imageFile->orig_path;
+            $originalPath = storage_path('app/private/' . $imageFile->orig_path);
             $compressedFilename = pathinfo($imageFile->orig_path, PATHINFO_FILENAME) . '_compressed.' . $extension;
             $compressedPath = 'images/compressed/' . $compressedFilename;
             $absoluteCompressedPath = storage_path('app/private/' . $compressedPath);
-
-            echo("Step 1");
 
             // Check directory and place correct permissions
             $compressedDir = dirname($absoluteCompressedPath);
@@ -91,8 +86,6 @@ class CompressionService
                 chmod($originalPath, 0644);
             }
 
-            echo("Step 2");
-
             // Actual compression process
             // Compression Code for one single file - Start Intervention
             $manager = new ImageManager(new Driver());
@@ -104,8 +97,6 @@ class CompressionService
                     $constraint->upsize();
                 });
             }
-
-            echo("Step 3");
 
             // Convert Encoded image data to base64 string - to be able to transmit back to frontend &
             // Calculate Sizes in kb - Round to 2 decimal places, getSize() - obtains file size in bytes / 1024 = kilobytes
