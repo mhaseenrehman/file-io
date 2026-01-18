@@ -71,7 +71,8 @@ class CompressionService
             }
 
             // Need to update and then retrieve image from local storage
-            $originalPath = storage_path('app/private/' . $imageFile->orig_path);
+            //$originalPath = storage_path('app/private/' . $imageFile->orig_path);
+            $originalPath = $imageFile->orig_path;
             $compressedFilename = pathinfo($imageFile->orig_path, PATHINFO_FILENAME) . '_compressed.' . $extension;
             $compressedPath = 'images/compressed/' . $compressedFilename;
             $absoluteCompressedPath = storage_path('app/private/' . $compressedPath);
