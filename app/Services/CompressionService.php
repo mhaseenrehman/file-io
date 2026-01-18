@@ -77,6 +77,8 @@ class CompressionService
             $compressedPath = 'images/compressed/' . $compressedFilename;
             $absoluteCompressedPath = storage_path('app/private/' . $compressedPath);
 
+            echo("Step 1");
+
             // Check directory and place correct permissions
             $compressedDir = dirname($absoluteCompressedPath);
             if (!file_exists($compressedDir)) {
@@ -89,6 +91,8 @@ class CompressionService
                 chmod($originalPath, 0644);
             }
 
+            echo("Step 2");
+
             // Actual compression process
             // Compression Code for one single file - Start Intervention
             $manager = new ImageManager(new Driver());
@@ -100,6 +104,8 @@ class CompressionService
                     $constraint->upsize();
                 });
             }
+
+            echo("Step 3");
 
             // Convert Encoded image data to base64 string - to be able to transmit back to frontend &
             // Calculate Sizes in kb - Round to 2 decimal places, getSize() - obtains file size in bytes / 1024 = kilobytes
