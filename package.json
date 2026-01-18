@@ -16,6 +16,6 @@
     "vue-toastification": "^1.7.14"
   },
   "scripts": {
-    "build": "vite build && vite build --ssr"
+    "build": "vite build"
   }
 }
