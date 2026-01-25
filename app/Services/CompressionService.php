@@ -7,7 +7,7 @@ use Intervention\Image\Drivers\Gd\Driver;
 use Intervention\Image\Drivers\Gd\Encoders\JpegEncoder;
 use Intervention\Image\Drivers\Gd\Encoders\PngEncoder;
 use Intervention\Image\Drivers\Gd\Encoders\WebpEncoder;
-
+use Illuminate\Support\Facades\Storage;
 use App\Models\ImageFile;
 
 class CompressionService
