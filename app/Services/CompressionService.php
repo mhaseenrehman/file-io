@@ -104,39 +104,45 @@ class CompressionService
             //     chmod($originalPath, 0644);
             // }
 
-            // Actual compression process
-            // Compression Code for one single file - Start Intervention
-            $manager = new ImageManager(new Driver());
-            //$image = $manager->read($originalPath);
-            //$image = $manager->read($imageFile->getPathname());
-            $image = $manager->read(Storage::disk('s3')->get($originalPath));
-            if ($width) {
-                $image->resize($width, null, function ($constraint) {
-                    $constraint->aspectRatio();
-                    $constraint->upsize();
-                });
+            if (Storage::disk('s3')->exists($originalPath)) {
+                // Actual compression process
+                // Compression Code for one single file - Start Intervention
+                $manager = new ImageManager(new Driver());
+                //$image = $manager->read($originalPath);
+                //$image = $manager->read($imageFile->getPathname());
+                $diskImage = Storage::disk('s3')->get($originalPath);
+                $image = $manager->read($diskImage);
+                if ($width) {
+                    $image->resize($width, null, function ($constraint) {
+                        $constraint->aspectRatio();
+                        $constraint->upsize();
+                    });
+                }
+
+                // Convert Encoded image data to base64 string - to be able to transmit back to frontend &
+                // Calculate Sizes in kb - Round to 2 decimal places, getSize() - obtains file size in bytes / 1024 = kilobytes
+                // Finally, save the file to local
+                $encoded = $image->encode($encoder);
+                $downloadableLink = base64_encode($encoded->toString());
+                //$originalSizeKB = round($image->getSize() / 1024, 2);
+                $compressedSizeKB = round(strlen($encoded->toString()) / 1024, 2);
+                //$encoded->save($absoluteCompressedPath);
+                Storage::disk('s3')->put($compressedPath, (string)$encoded);
+
+                // Update the imageFile to ensure it can be easily retrieved
+                $imageFile->update([
+                    'compressed_name' => $compressedFilename,
+                    'compressed_path' => $compressedPath,
+                    'compressed_size' => $compressedSizeKB,
+                    'current_status' => 'complete'
+                ]);
+
+                // Return newly updated $imageFile
+                return $imageFile;
             }
-
-            // Convert Encoded image data to base64 string - to be able to transmit back to frontend &
-            // Calculate Sizes in kb - Round to 2 decimal places, getSize() - obtains file size in bytes / 1024 = kilobytes
-            // Finally, save the file to local
-            $encoded = $image->encode($encoder);
-            $downloadableLink = base64_encode($encoded->toString());
-            //$originalSizeKB = round($image->getSize() / 1024, 2);
-            $compressedSizeKB = round(strlen($encoded->toString()) / 1024, 2);
-            //$encoded->save($absoluteCompressedPath);
-            Storage::disk('s3')->put($compressedPath, (string)$encoded);
-
-            // Update the imageFile to ensure it can be easily retrieved
-            $imageFile->update([
-                'compressed_name' => $compressedFilename,
-                'compressed_path' => $compressedPath,
-                'compressed_size' => $compressedSizeKB,
-                'current_status' => 'complete'
-            ]);
-
-            // Return newly updated $imageFile
-            return $imageFile;
+            else {
+                throw new \Exception('File not found');
+            }
 
         } catch (\Exception $e) {
             $imageFile->update([
