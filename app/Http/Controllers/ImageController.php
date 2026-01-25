@@ -53,7 +53,7 @@ class ImageController extends Controller
                     $i = $i + 1;
 
                     // Queue async job for compression
-                    CompressVideoJob::dispatch($imageFile, $format, $quality, $width, $image, $storagePath, $filename);
+                    CompressVideoJob::dispatch($imageFile, $format, $quality, $width);
                 }
 
                 // Return JSON response

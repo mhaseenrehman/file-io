@@ -24,6 +24,7 @@ class CompressionService
         $filename = time() . '_' . uniqid('', true) . "." . $file->extension();
         if ($type === 'image') { $storagePath = 'images/requests'; }
         $origPath = $storagePath . '/' . $filename;
+        $file->storeAs($storagePath, $filename, 's3');
 
         // Create final File
         $result = ImageFile::create([
@@ -35,15 +36,7 @@ class CompressionService
             'current_status' => 'waiting'
         ]);
 
-        return array($result, $storagePath, $filename);
-    }
-
-    /**
-     * Store image functionality
-     */
-    public function storeFile($file, $storagePath, $filename) {
-        //$file->storeAs($storagePath, $filename, 'local');
-        $file->storeAs($storagePath, $filename, 's3');
+        return $result;
     }
 
     /**
