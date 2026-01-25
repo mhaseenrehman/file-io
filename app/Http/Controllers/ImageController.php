@@ -45,7 +45,6 @@ class ImageController extends Controller
                     
                     // Need to store file on system for async compression and retrieval
                     $imageFile = $this->compressionService->createFile($image, $indices[$i], 'image');
-                    
                     $responseIds[$indices[$i]] = $imageFile->id;
                     $i = $i + 1;
 
