@@ -44,12 +44,13 @@ class ImageController extends Controller
                     $width = (int)$request->input("width", null);
                     
                     // Need to store file on system for async compression and retrieval
-                    $imageFile = $this->compressionService->storeFile($image, $indices[$i], 'image');
+                    $cfResult = $this->compressionService->createFile($image, $indices[$i], 'image');
+                    $imageFile = $cfResult[0];
                     $responseIds[$indices[$i]] = $imageFile->id;
                     $i = $i + 1;
 
                     // Queue async job for compression
-                    CompressVideoJob::dispatch($imageFile, $format, $quality, $width);
+                    CompressVideoJob::dispatch($imageFile, $format, $quality, $width, $file, $storagePath, $filename);
                 }
 
                 // Return JSON response

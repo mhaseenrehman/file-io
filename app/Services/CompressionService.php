@@ -12,11 +12,10 @@ use App\Models\ImageFile;
 
 class CompressionService
 {
-    
     /**
-     * Store file on disk
+     * Create file in Database
      */
-    public function storeFile($file, $index, $type) {
+    public function createFile($file, $index, $type) {
         $origFilename = $file->getClientOriginalName();
         $origSize = $file->getSize();
 
@@ -24,22 +23,10 @@ class CompressionService
         // When retrieving file, ensure get absolute directory -> /storage/app/private/(TYPE)/requests/
         $filename = time() . '_' . uniqid('', true) . "." . $file->extension();
         if ($type === 'image') { $storagePath = 'images/requests'; }
-        
-        // ------------------------------------ PREV USAGE / S3 USAGE ----------------------------------
+        $origPath = $storagePath . $filename;
         //$origPath = $file->storeAs($storagePath, $filename, 'local');
-        //$file->storeAs($storagePath, $filename, 's3');
-        Storage::disk('s3')->put($storagePath, $file);
-        $origPath = $storagePath . "/" . $filename;
 
         // Create final File
-        // $result = ImageFile::create([
-        //     'file_request_index' => $index,
-        //     'orig_name' => $origFilename,
-        //     'orig_path' => $origPath,
-        //     'orig_size' => $origSize,
-        //     'orig_format' => $file->extension(),
-        //     'current_status' => 'waiting'
-        // ]);
         $result = ImageFile::create([
             'file_request_index' => $index,
             'orig_name' => $origFilename,
@@ -49,13 +36,18 @@ class CompressionService
             'current_status' => 'waiting'
         ]);
 
+        return array($result, $storagePath, $filename);
+    }
 
-        return $result;
+    /**
+     * Store image functionality
+     */
+    public function storeFile($file, $storagePath, $filename) {
+        $origPath = $file->storeAs($storagePath, $filename, 'local');
     }
 
     /**
      * Compress image functionality
-     *
      */
     public function compressImage(ImageFile $imageFile, $format, $quality, $width) {
         try {
@@ -81,66 +73,57 @@ class CompressionService
 
             // ------------------------------------ PREV USAGE / S3 USAGE ----------------------------------
             // Need to update and then retrieve image from local storage
-            //$originalPath = storage_path('app/private/' . $imageFile->orig_path);
-            //$compressedFilename = pathinfo($imageFile->orig_path, PATHINFO_FILENAME) . '_compressed.' . $extension;
-            //$compressedPath = 'images/compressed/' . $compressedFilename;
-            //$absoluteCompressedPath = storage_path('app/private/' . $compressedPath);
-
-            $originalPath = $imageFile->orig_path; // ASSUME THIS IS: /images/requests/---.jpg
+            $originalPath = storage_path('app/private/' . $imageFile->orig_path);
             $compressedFilename = pathinfo($imageFile->orig_path, PATHINFO_FILENAME) . '_compressed.' . $extension;
             $compressedPath = 'images/compressed/' . $compressedFilename;
+            $absoluteCompressedPath = storage_path('app/private/' . $compressedPath);
 
             // Check directory and place correct permissions
-            // $compressedDir = dirname($absoluteCompressedPath);
-            // if (!file_exists($compressedDir)) {
-            //     if (!mkdir($compressedDir, 0777, true) && !is_dir($compressedDir)) {
-            //         throw new \RuntimeException(sprintf('Directory was not created.' . $compressedDir));
-            //     }
-            // }
-            // chmod($compressedDir, 0777);
-            // if (file_exists($originalPath)) {
-            //     chmod($originalPath, 0644);
-            // }
-
-            if (Storage::disk('s3')->exists($originalPath)) {
-                // Actual compression process
-                // Compression Code for one single file - Start Intervention
-                $manager = new ImageManager(new Driver());
-                //$image = $manager->read($originalPath);
-                //$image = $manager->read($imageFile->getPathname());
-                $diskImage = Storage::disk('s3')->get($originalPath);
-                $image = $manager->read($diskImage);
-                if ($width) {
-                    $image->resize($width, null, function ($constraint) {
-                        $constraint->aspectRatio();
-                        $constraint->upsize();
-                    });
+            $compressedDir = dirname($absoluteCompressedPath);
+            if (!file_exists($compressedDir)) {
+                if (!mkdir($compressedDir, 0777, true) && !is_dir($compressedDir)) {
+                    throw new \RuntimeException(sprintf('Directory was not created.' . $compressedDir));
                 }
-
-                // Convert Encoded image data to base64 string - to be able to transmit back to frontend &
-                // Calculate Sizes in kb - Round to 2 decimal places, getSize() - obtains file size in bytes / 1024 = kilobytes
-                // Finally, save the file to local
-                $encoded = $image->encode($encoder);
-                $downloadableLink = base64_encode($encoded->toString());
-                //$originalSizeKB = round($image->getSize() / 1024, 2);
-                $compressedSizeKB = round(strlen($encoded->toString()) / 1024, 2);
-                //$encoded->save($absoluteCompressedPath);
-                Storage::disk('s3')->put($compressedPath, (string)$encoded);
-
-                // Update the imageFile to ensure it can be easily retrieved
-                $imageFile->update([
-                    'compressed_name' => $compressedFilename,
-                    'compressed_path' => $compressedPath,
-                    'compressed_size' => $compressedSizeKB,
-                    'current_status' => 'complete'
-                ]);
-
-                // Return newly updated $imageFile
-                return $imageFile;
             }
-            else {
-                throw new \Exception('File not found');
+            chmod($compressedDir, 0777);
+            if (file_exists($originalPath)) {
+                chmod($originalPath, 0644);
             }
+
+            // Actual compression process
+            // Compression Code for one single file - Start Intervention
+            $manager = new ImageManager(new Driver());
+            $image = $manager->read($originalPath);
+            //$image = $manager->read($imageFile->getPathname());
+            //$diskImage = Storage::disk('s3')->get($originalPath);
+            //$image = $manager->read($diskImage);
+            if ($width) {
+                $image->resize($width, null, function ($constraint) {
+                    $constraint->aspectRatio();
+                    $constraint->upsize();
+                });
+            }
+
+            // Convert Encoded image data to base64 string - to be able to transmit back to frontend &
+            // Calculate Sizes in kb - Round to 2 decimal places, getSize() - obtains file size in bytes / 1024 = kilobytes
+            // Finally, save the file to local
+            $encoded = $image->encode($encoder);
+            $downloadableLink = base64_encode($encoded->toString());
+            //$originalSizeKB = round($image->getSize() / 1024, 2);
+            $compressedSizeKB = round(strlen($encoded->toString()) / 1024, 2);
+            $encoded->save($absoluteCompressedPath);
+
+            // Update the imageFile to ensure it can be easily retrieved
+            $imageFile->update([
+                'compressed_name' => $compressedFilename,
+                'compressed_path' => $compressedPath,
+                'compressed_size' => $compressedSizeKB,
+                'current_status' => 'complete'
+            ]);
+
+            // Return newly updated $imageFile
+            return $imageFile;
+
 
         } catch (\Exception $e) {
             $imageFile->update([

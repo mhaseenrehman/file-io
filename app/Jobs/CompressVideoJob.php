@@ -19,6 +19,10 @@ class CompressVideoJob implements ShouldQueue
     protected $quality;
     protected $width;
 
+    protected $file; 
+    protected $storagePath; 
+    protected $filename;
+
     // Retries and Timeouts
     public $tries = 3;
     public $timeout = 120;
@@ -26,13 +30,17 @@ class CompressVideoJob implements ShouldQueue
     /**
      * Create a new job instance.
      */
-    public function __construct(ImageFile $imageFile, $format, $quality, $width)
+    public function __construct(ImageFile $imageFile, $format, $quality, $width, $file, $storagePath, $filename)
     {
         // Construct Video Compression Job Details
         $this->imageFile = $imageFile;
         $this->format = $format;
         $this->quality = $quality;
         $this->width = $width;
+
+        $this->$file = $file; 
+        $this->$storagePath = $storagePath; 
+        $this->$filename = $filename;
     }
 
     /**
@@ -41,7 +49,7 @@ class CompressVideoJob implements ShouldQueue
     public function handle(CompressionService $cs): void
     {
         try {
-
+            $cs->storeFile($this->$file, $this->$storagePath, $this->$filename);
             $cs->compressImage($this->imageFile, $this->format, $this->quality, $this->width);
 
         } catch (\Exception $e) {
