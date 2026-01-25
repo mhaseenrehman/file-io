@@ -70,6 +70,8 @@ class ImageController extends Controller
         }
     }
 
+    //chmod +x ./worker.sh && sh ./worker.sh
+
     /**
      * Ping for status update on compression process
      */
@@ -128,11 +130,11 @@ class ImageController extends Controller
             $path = $file->compressed_path;
             $filename = pathinfo($file->orig_path, PATHINFO_FILENAME) . '_compressed.' . $extension;
 
-            if (!Storage::exists($path)) {
+            if (!Storage::disk('s3')->exists($path)) {
                 return response()->json(['error' => 'File not found'], 404);
             }
 
-            return Storage::download($path, $filename);
+            return Storage::disk('s3')->download($path, $filename);
 
         } catch (\Exception $e) {
             return response()->json(['error' => 'Failed' . $e->getMessage()], 500);
