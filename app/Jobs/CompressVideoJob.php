@@ -38,9 +38,9 @@ class CompressVideoJob implements ShouldQueue
         $this->quality = $quality;
         $this->width = $width;
 
-        $this->$file = $file; 
-        $this->$storagePath = $storagePath; 
-        $this->$filename = $filename;
+        $this->file = $file; 
+        $this->storagePath = $storagePath; 
+        $this->filename = $filename;
     }
 
     /**
