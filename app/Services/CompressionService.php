@@ -28,7 +28,7 @@ class CompressionService
         // ------------------------------------ PREV USAGE / S3 USAGE ----------------------------------
         //$origPath = $file->storeAs($storagePath, $filename, 'local');
         $file->storeAs($storagePath, $filename, 's3');
-        $origPath = $storagePath . $filename;
+        $origPath = $storagePath . "/" . $filename;
 
         // Create final File
         // $result = ImageFile::create([
