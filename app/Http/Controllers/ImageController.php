@@ -44,10 +44,7 @@ class ImageController extends Controller
                     $width = (int)$request->input("width", null);
                     
                     // Need to store file on system for async compression and retrieval
-                    $cfResult = $this->compressionService->createFile($image, $indices[$i], 'image');
-                    $imageFile = $cfResult[0];
-                    $storagePath = $cfResult[1];
-                    $filename = $cfResult[2];
+                    $imageFile = $this->compressionService->createFile($image, $indices[$i], 'image');
                     
                     $responseIds[$indices[$i]] = $imageFile->id;
                     $i = $i + 1;
