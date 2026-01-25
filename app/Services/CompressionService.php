@@ -27,7 +27,8 @@ class CompressionService
         
         // ------------------------------------ PREV USAGE / S3 USAGE ----------------------------------
         //$origPath = $file->storeAs($storagePath, $filename, 'local');
-        $file->storeAs($storagePath, $filename, 's3');
+        //$file->storeAs($storagePath, $filename, 's3');
+        Storage::disk('s3')->put($storagePath, $file);
         $origPath = $storagePath . "/" . $filename;
 
         // Create final File
@@ -52,9 +53,6 @@ class CompressionService
         return $result;
     }
 
-    //////////////////////////////////////////////////////////
-    ////////////////////////// TEST //////////////////////////
-    //////////////////////////////////////////////////////////
     /**
      * Compress image functionality
      *
