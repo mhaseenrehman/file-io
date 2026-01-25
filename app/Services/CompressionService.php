@@ -43,7 +43,7 @@ class CompressionService
      * Store image functionality
      */
     public function storeFile($file, $storagePath, $filename) {
-        $origPath = $file->storeAs($storagePath, $filename, 'local');
+        $file->storeAs($storagePath, $filename, 'local');
     }
 
     /**
