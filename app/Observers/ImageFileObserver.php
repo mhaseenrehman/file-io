@@ -29,13 +29,13 @@ class ImageFileObserver
     public function deleted(ImageFile $imageFile): void
     {
         // Delete the original image file uploaded
-        if ($imageFile->orig_path && Storage::disk('local')->exists($imageFile->orig_path)) {
-            Storage::disk('local')->delete($imageFile->orig_path);
+        if ($imageFile->orig_path && Storage::disk('s3')->exists($imageFile->orig_path)) {
+            Storage::disk('s3')->delete($imageFile->orig_path);
         }
 
         // Delete the compressed image file saved
-        if ($imageFile->compressed_path && Storage::disk('local')->exists($imageFile->compressed_path)) {
-            Storage::disk('local')->delete($imageFile->compressed_path);
+        if ($imageFile->compressed_path && Storage::disk('s3')->exists($imageFile->compressed_path)) {
+            Storage::disk('s3')->delete($imageFile->compressed_path);
         }
     }
 
