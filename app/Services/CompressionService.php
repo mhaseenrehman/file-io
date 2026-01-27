@@ -12,6 +12,12 @@ use App\Models\ImageFile;
 
 class CompressionService
 {
+    protected $storageDisk;
+
+    public function __construct(CompressionService $compService) {
+        $this->storageDisk = env('FILESYSTEM_DISK');
+    }
+
     /**
      * Create file in Database
      */
@@ -24,7 +30,7 @@ class CompressionService
         $filename = time() . '_' . uniqid('', true) . "." . $file->extension();
         if ($type === 'image') { $storagePath = 'images/requests'; }
         $origPath = $storagePath . '/' . $filename;
-        $file->storeAs($storagePath, $filename, 's3');
+        $file->storeAs($storagePath, $filename, $this->storageDisk);
 
         // Create final File
         $result = ImageFile::create([
@@ -64,7 +70,7 @@ class CompressionService
                     break;
             }
 
-            if (Storage::disk('s3')->exists($imageFile->orig_path)) {
+            if (Storage::disk($this->storageDisk)->exists($imageFile->orig_path)) {
                 // Need to update and then retrieve image from local storage
 
                 //$originalPath = storage_path('app/private/' . $imageFile->orig_path);
@@ -91,7 +97,7 @@ class CompressionService
                 $manager = new ImageManager(new Driver());
                 //$image = $manager->read($originalPath);
                 //$image = $manager->read($imageFile->getPathname());
-                $diskImage = Storage::disk('s3')->get($originalPath);
+                $diskImage = Storage::disk($this->storageDisk)->get($originalPath);
                 $image = $manager->read($diskImage);
                 if ($width) {
                     $image->resize($width, null, function ($constraint) {
@@ -108,7 +114,7 @@ class CompressionService
                 //$originalSizeKB = round($image->getSize() / 1024, 2);
                 $compressedSizeKB = round(strlen($encoded->toString()) / 1024, 2);
                 //$encoded->save($absoluteCompressedPath);
-                Storage::disk('s3')->put($compressedPath, $encoded->toString());
+                Storage::disk($this->storageDisk)->put($compressedPath, $encoded->toString());
 
                 // Update the imageFile to ensure it can be easily retrieved
                 $imageFile->update([
@@ -122,7 +128,7 @@ class CompressionService
                 return $imageFile;
 
             } else {
-                throw new \Exception('File not found in S3');
+                throw new \Exception('File not found in storage disk');
             }
 
         } catch (\Exception $e) {

@@ -12,10 +12,12 @@ use Inertia\Response;
 
 class ImageController extends Controller
 {
+    protected $storageDisk;
     protected $compressionService;
 
     public function __construct(CompressionService $compService) {
         $this->compressionService = $compService;
+        $this->storageDisk = env('FILESYSTEM_DISK');
     }
 
     /**
@@ -130,11 +132,11 @@ class ImageController extends Controller
             $path = $file->compressed_path;
             $filename = pathinfo($file->orig_path, PATHINFO_FILENAME) . '_compressed.' . $extension;
 
-            if (!Storage::disk('s3')->exists($path)) {
+            if (!Storage::disk($this->storageDisk)->exists($path)) {
                 return response()->json(['error' => 'File not found'], 404);
             }
 
-            return Storage::disk('s3')->download($path, $filename);
+            return Storage::disk($this->storageDisk)->download($path, $filename);
 
         } catch (\Exception $e) {
             return response()->json(['error' => 'Failed' . $e->getMessage()], 500);
