@@ -17,7 +17,7 @@ class ImageController extends Controller
 
     public function __construct(CompressionService $compService) {
         $this->compressionService = $compService;
-        $this->storageDisk = env('FILESYSTEM_DISK');
+        $this->storageDisk = env('PRODUCTION_DISK');
     }
 
     /**

@@ -14,8 +14,8 @@ class CompressionService
 {
     protected $storageDisk;
 
-    public function __construct(CompressionService $compService) {
-        $this->storageDisk = env('FILESYSTEM_DISK');
+    public function __construct() {
+        $this->storageDisk = env('PRODUCTION_DISK');
     }
 
     /**
